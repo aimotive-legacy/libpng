@@ -49,7 +49,7 @@ include(GNUInstallDirs)
 option(PNG_BUILD_ZLIB "Custom zlib Location, else find_package is used" OFF)
 
 IF(NOT PNG_BUILD_ZLIB)
-  find_package(ZLIB REQUIRED)
+  find_package(ZLIB REQUIRED CONFIG)
   include_directories(${ZLIB_INCLUDE_DIR})
 ENDIF(NOT PNG_BUILD_ZLIB)
 
@@ -67,8 +67,13 @@ else()
 endif()
 
 # COMMAND LINE OPTIONS
-option(PNG_SHARED "Build shared lib" ON)
-option(PNG_STATIC "Build static lib" ON)
+if (BUILD_SHARED_LIBS)
+    set(PNG_SHARED 1)
+    set(PNG_STATIC 0)
+else()
+    set(PNG_SHARED 0)
+    set(PNG_STATIC 1)
+endif()
 option(PNG_TESTS  "Build libpng tests" ON)
 
 # Many more configuration options could be added here
@@ -526,7 +531,7 @@ if(PNG_SHARED)
     set_target_properties(png PROPERTIES PREFIX "lib")
     set_target_properties(png PROPERTIES IMPORT_PREFIX "lib")
   endif()
-  target_link_libraries(png ${ZLIB_LIBRARY} ${M_LIBRARY})
+  target_link_libraries(png ${ZLIB_LIBRARIES} ${M_LIBRARY})
 
   if(UNIX AND AWK)
     if(HAVE_LD_VERSION_SCRIPT)
@@ -561,7 +566,7 @@ if(PNG_STATIC)
     # msvc does not append 'lib' - do it here to have consistent name
     set_target_properties(png_static PROPERTIES PREFIX "lib")
   endif()
-  target_link_libraries(png_static ${ZLIB_LIBRARY} ${M_LIBRARY})
+  target_link_libraries(png_static ${ZLIB_LIBRARIES} ${M_LIBRARY})
 endif()
 
 if(PNG_FRAMEWORK)
@@ -578,7 +583,7 @@ if(PNG_FRAMEWORK)
     XCODE_ATTRIBUTE_INSTALL_PATH "@rpath"
     PUBLIC_HEADER "${libpng_public_hdrs}"
     OUTPUT_NAME png)
-  target_link_libraries(png_framework ${ZLIB_LIBRARY} ${M_LIBRARY})
+  target_link_libraries(png_framework ${ZLIB_LIBRARIES} ${M_LIBRARY})
 endif()
 
 if(NOT PNG_LIB_TARGETS)
@@ -751,7 +756,7 @@ if(PNG_SHARED)
   set(PNG_BIN_TARGETS pngfix)
 
   add_executable(png-fix-itxt ${png_fix_itxt_sources})
-  target_link_libraries(png-fix-itxt ${ZLIB_LIBRARY} ${M_LIBRARY})
+  target_link_libraries(png-fix-itxt ${ZLIB_LIBRARIES} ${M_LIBRARY})
   list(APPEND PNG_BIN_TARGETS png-fix-itxt)
 endif()
 
@@ -827,9 +832,9 @@ endif()
 # targets to an export file.
 # TODO: Use VERSION_GREATER after our cmake_minimum_required >= 2.6.2
 if(CMAKE_MAJOR_VERSION GREATER 1 AND CMAKE_MINOR_VERSION GREATER 4)
-  set(PNG_EXPORT_RULE EXPORT libpng)
+  set(PNG_EXPORT_RULE EXPORT libpng-targets)
 elseif(CMAKE_MAJOR_VERSION GREATER 2) # future proof
-  set(PNG_EXPORT_RULE EXPORT libpng)
+  set(PNG_EXPORT_RULE EXPORT libpng-targets)
 endif()
 
 # INSTALL
@@ -869,8 +874,10 @@ if(NOT SKIP_INSTALL_LIBRARIES AND NOT SKIP_INSTALL_ALL )
 endif()
 
 if(NOT SKIP_INSTALL_HEADERS AND NOT SKIP_INSTALL_ALL )
+  # AIM: don't duplicate headers. For backward compatibility we install public
+  # headers under `include` directly
   install(FILES ${libpng_public_hdrs}   DESTINATION include)
-  install(FILES ${libpng_public_hdrs}   DESTINATION include/${PNGLIB_NAME})
+  #install(FILES ${libpng_public_hdrs}   DESTINATION include/${PNGLIB_NAME})
 endif()
 if(NOT SKIP_INSTALL_EXECUTABLES AND NOT SKIP_INSTALL_ALL )
   if(NOT WIN32 OR CYGWIN OR MINGW)
@@ -908,7 +915,10 @@ endif()
 # On versions of CMake that support it, create an export file CMake
 # users can include() to import our targets
 if(PNG_EXPORT_RULE AND NOT SKIP_INSTALL_EXPORT AND NOT SKIP_INSTALL_ALL )
-  install(EXPORT libpng DESTINATION lib/libpng FILE lib${PNG_LIB_NAME}.cmake)
+  # AIM: Generate config
+  install(${PNG_EXPORT_RULE} NAMESPACE :: DESTINATION lib/cmake/PNG)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/PNGConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/gen/PNGConfig.cmake @ONLY)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/gen/PNGConfig.cmake DESTINATION lib/cmake/PNG)
 endif()
 
 # what's with libpng-manual.txt and all the extra files?
