@@ -542,6 +542,8 @@ if(PNG_SHARED)
         "-Wl,-M -Wl,'${CMAKE_CURRENT_BINARY_DIR}/libpng.vers'")
     endif()
   endif()
+  target_include_directories(png PUBLIC $<INSTALL_INTERFACE:include>)
+  set_target_properties(png PROPERTIES EXPORT_NAME PNG)
 endif()
 
 if(PNG_STATIC)
@@ -566,7 +568,9 @@ if(PNG_STATIC)
     # msvc does not append 'lib' - do it here to have consistent name
     set_target_properties(png_static PROPERTIES PREFIX "lib")
   endif()
+  target_include_directories(png_static PUBLIC $<INSTALL_INTERFACE:include>)
   target_link_libraries(png_static ${ZLIB_LIBRARIES} ${M_LIBRARY})
+  set_target_properties(png_static PROPERTIES EXPORT_NAME PNG)
 endif()
 
 if(PNG_FRAMEWORK)
@@ -916,7 +920,7 @@ endif()
 # users can include() to import our targets
 if(PNG_EXPORT_RULE AND NOT SKIP_INSTALL_EXPORT AND NOT SKIP_INSTALL_ALL )
   # AIM: Generate config
-  install(${PNG_EXPORT_RULE} NAMESPACE :: DESTINATION lib/cmake/PNG)
+  install(${PNG_EXPORT_RULE} NAMESPACE PNG:: DESTINATION lib/cmake/PNG)
   configure_file(${CMAKE_CURRENT_LIST_DIR}/PNGConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/gen/PNGConfig.cmake @ONLY)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/gen/PNGConfig.cmake DESTINATION lib/cmake/PNG)
 endif()
